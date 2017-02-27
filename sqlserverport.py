@@ -14,11 +14,14 @@
 
 import socket
 
-"""module to query the SQL Browser service for the port number of a SQL Server instance"""
+"""sqlserverport
+
+A module to query the SQL Browser service for the port number of a SQL Server instance.
+"""
 
 
 def lookup(server, instance):
-    """Query the SQL Browse service and extract the port number
+    """Query the SQL Browser service and extract the port number
 
     :type server: str
     :type instance: str
