@@ -5,17 +5,23 @@ A simple Python module to query the SQL Browser service for the port number of a
 ```python
 import pyodbc
 serverspec = r'myserver\SQLEXPRESS'
-conn = pyodbc.connect('DRIVER=ODBC Driver 13 for SQL Server;SERVER={};...'.format(serverspec))
+conn = pyodbc.connect('DRIVER=ODBC Driver 17 for SQL Server;SERVER={};...'.format(serverspec))
 ```
 
 but that won't work on Linux. This module lets us do
 
 ```python
 import pyodbc
-import sqlserverport
+from sqlserverport import sqlserverport
 servername = 'myserver'
 serverspec = '{0},{1}'.format(
     servername,
     sqlserverport.lookup(servername, 'SQLEXPRESS'))
-conn = pyodbc.connect('DRIVER=ODBC Driver 13 for SQL Server;SERVER={};...'.format(serverspec))
+conn = pyodbc.connect('DRIVER=ODBC Driver 17 for SQL Server;SERVER={};...'.format(serverspec))
+```
+
+## Installing
+
+```
+pip install sqlserverport
 ```
