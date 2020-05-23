@@ -1,4 +1,4 @@
-# Copyright 2017 Gordon D. Thompson
+# Copyright 2020 Gordon D. Thompson, gord@gordthompson.com
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,28 @@ A module to query the SQL Browser service for the port number of a SQL Server in
 """
 
 
+class Error(Exception):
+    """Base class for exceptions in this module."""
+
+    pass
+
+
+class BrowserError(Error):
+    """Problem communicating with the SQL Browser service.
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
+class NoTcpError(Error):
+    """Instance not configured for TCP/IP connections.
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 def lookup(server, instance):
     """Query the SQL Browser service and extract the port number
 
@@ -31,37 +53,38 @@ def lookup(server, instance):
     udp_message_type = b"\x04"  # CLNT_UCAST_INST (client, unicast, instance)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(1)
+    sock.settimeout(5)
 
     udp_message = udp_message_type + instance.encode()
-    sock.sendto(udp_message, (server, udp_port))
-    response = sock.recv(1024)  # max 1024 bytes for CLNT_UCAST_INST
-
-    # response_type = response[0]  # \x05
-    # response_length = response[1:3]  # 2 bytes, little-endian
-    response_list = response[3:].decode().split(";")
-    response_dict = {
-        response_list[i]: response_list[i + 1] for i in range(0, len(response_list), 2)
-    }
-
-    return int(response_dict["tcp"])
-
-
-if __name__ == "__main__":
-    # test data
-    server_name = "127.0.0.1"
-    instance_name = "SQLEXPRESS"
-
     try:
-        message = r"instance \{0} is listening on port {1}".format(
-            instance_name, lookup(server_name, instance_name)
-        )
+        sock.sendto(udp_message, (server, udp_port))
+        response = sock.recv(1024)  # max 1024 bytes for CLNT_UCAST_INST
+
+        # response_type = response[0]  # \x05
+        # response_length = response[1:3]  # 2 bytes, little-endian
+        response_list = response[3:].decode().split(";")
+        response_dict = {
+            response_list[i]: response_list[i + 1]
+            for i in range(0, len(response_list), 2)
+        }
+
+        return int(response_dict["tcp"])
+
     except KeyError as no_tcp:
-        message = "(instance {} is not configured to accept TCP/IP connections)".format(
-            instance_name
+        raise NoTcpError(
+            r"Instance \{} is not configured to accept TCP/IP connections.".format(
+                instance
+            )
         )
     except socket.timeout as no_response:
-        message = "(no response from SQL Browser service on {})".format(server_name)
+        raise BrowserError(
+            r"No response from the SQL Browser service. "
+            r"Verify that the service is available on "
+            r"{0} and \{1} is a valid instance name on it.".format(
+                server, instance
+            )
+        )
     except ConnectionResetError as no_connect:
-        message = "(cannot connect to SQL Browser service on {})".format(server_name)
-    print(message)
+        raise BrowserError(
+            "Cannot connect to the SQL Browser service on {} .".format(server)
+        )
